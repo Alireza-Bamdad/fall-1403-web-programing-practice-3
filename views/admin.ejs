@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>پنل مدیریت</title>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="btn btn-success">صفحه اصلی</a>
+            <div>
+                <span>پنل مدیریت</span>
+            </div>
+            <a href="/logout" class="btn btn-danger">خروج</a>
+        </div>
+    </nav>
+    <div class="admin-container">
+        <div class="admin-section">
+            <h2>افزودن محصول جدید</h2>
+            <form action="/admin/product" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="name">نام محصول:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="category">دسته:</label>
+                    <select id="category" name="category" >
+                        <% categories.forEach(function(category) { %>
+                            <option value="<%= category.name %>"><%= category.name %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="subcategory">زیر دسته:</label>
+                    <select id="subcategory" name="subcategory" >
+                        <% categories.forEach(function(category) { %>
+                            <% category.subcategories.forEach(function(subcategory) { %>
+                                <option value="<%= subcategory.name %>" data-category="<%= category.name %>">
+                                    <%= subcategory.name %>
+                                </option>
+                            <% }); %>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="price">قیمت:</label>
+                    <input type="number" id="price" name="price" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">توضیحات:</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="image">تصویر محصول:</label>
+                    <input type="file" id="image" name="image" accept="image/*">
+                </div>
+                <button type="submit">افزودن محصول</button>
+            </form>
+        </div>
+
+        <div class="admin-section">
+            <h2>لیست محصولات</h2>
+            <div class="products-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>نام</th>
+                            <th>دسته</th>
+                            <th>زیر دسته</th>
+                            <th>قیمت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% products.forEach(function(product) { %>
+                            <tr>
+                                <td><%= product.name %></td>
+                                <td><%= product.category %></td>
+                                <td><%= product.subcategory %></td>
+                                <td><%= product.price %></td>
+                                <td>
+                                    <button class="edit-btn" onclick="editProduct('<%= product._id %>')">ویرایش</button>
+                                    <button class="delete-btn" onclick="deleteProduct('<%= product._id %>')">حذف</button>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>ویرایش محصول</h2>
+            <form id="editForm" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="edit-name">نام محصول:</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-category">دسته:</label>
+                    <select id="edit-category" name="category" required>
+                        <% categories.forEach(function(category) { %>
+                            <option value="<%= category.name %>"><%= category.name %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-subcategory">زیر دسته:</label>
+                    <select id="edit-subcategory" name="subcategory" required>
+                        <% categories.forEach(function(category) { %>
+                            <% category.subcategories.forEach(function(subcategory) { %>
+                                <option value="<%= subcategory.name %>" data-category="<%= category.name %>">
+                                    <%= subcategory.name %>
+                                </option>
+                            <% }); %>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-price">قیمت:</label>
+                    <input type="number" id="edit-price" name="price" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-description">توضیحات:</label>
+                    <textarea id="edit-description" name="description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-image">تصویر جدید محصول:</label>
+                    <input type="file" id="edit-image" name="image" accept="image/*">
+                </div>
+                <button type="submit">ذخیره تغییرات</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function filterSubcategories(categorySelect, subcategorySelect) {
+            const selectedCategory = categorySelect.value;
+            const subcategoryOptions = subcategorySelect.options;
+
+            for (let option of subcategoryOptions) {
+                const category = option.getAttribute('data-category');
+                option.style.display = category === selectedCategory ? '' : 'none';
+            }
+
+            
+            for (let option of subcategoryOptions) {
+                if (option.style.display !== 'none') {
+                    subcategorySelect.value = option.value;
+                    break;
+                }
+            }
+        }
+
+        const categorySelect = document.getElementById('category');
+        const subcategorySelect = document.getElementById('subcategory');
+        const editCategorySelect = document.getElementById('edit-category');
+        const editSubcategorySelect = document.getElementById('edit-subcategory');
+
+        categorySelect.addEventListener('change', () => filterSubcategories(categorySelect, subcategorySelect));
+        editCategorySelect.addEventListener('change', () => filterSubcategories(editCategorySelect, editSubcategorySelect));
+
+        
+        filterSubcategories(categorySelect, subcategorySelect);
+        filterSubcategories(editCategorySelect, editSubcategorySelect);
+
+      
+        const modal = document.getElementById('editModal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+       
+        async function editProduct(productId) {
+            try {
+                const response = await fetch(`/admin/product/${productId}`);
+                const product = await response.json();
+
+                document.getElementById('edit-name').value = product.name;
+                document.getElementById('edit-category').value = product.category;
+                document.getElementById('edit-subcategory').value = product.subcategory;
+                document.getElementById('edit-price').value = product.price;
+                document.getElementById('edit-description').value = product.description;
+
+                const editForm = document.getElementById('editForm');
+                editForm.action = `/admin/product/${productId}`;
+                
+                modal.style.display = 'block';
+            } catch (error) {
+                console.error('خطا در دریافت اطلاعات محصول:', error);
+                alert('خطا در دریافت اطلاعات محصول');
+            }
+        }
+
+       
+        async function deleteProduct(productId) {
+            if (confirm('آیا از حذف این محصول اطمینان دارید؟')) {
+                try {
+                    const response = await fetch(`/admin/product/${productId}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        window.location.reload();
+                    } else {
+                        alert('خطا در حذف محصول');
+                    }
+                } catch (error) {
+                    console.error('خطا در حذف محصول:', error);
+                    alert('خطا در حذف محصول');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

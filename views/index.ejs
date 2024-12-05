@@ -1,0 +1,196 @@
+
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>صفحه اصلی</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .product-card img {
+            cursor: pointer;
+        }
+        .modal-image {
+            width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <span>   کاربر <%= username %></span>
+            <div>
+                <%if ( type == "admin") { %>
+                    <a href="/admin" class="btn btn-success"> پنل مدیریت</a>
+                <% } %>
+                <a href="/logout" class="btn btn-danger">خروج</a>
+            </div>
+        </div>
+
+    </nav>
+    <div class="filt  ">
+        <div class="form-group">
+            <label>انتخاب دسته‌بندی</label>
+            <select id="category-select" class="form-control">
+                <option value="">همه دسته‌ها</option>
+                <% categories.forEach(function(category) { %>
+                    <option value="<%= category.name %>"><%= category.name %></option>
+                <% }); %>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>انتخاب زیردسته</label>
+            <select id="subcategory-select" class="form-control">
+                <option value="">همه زیردسته‌ها</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>جستجو</label>
+            <input type="text" id="search-input" class="form-control" placeholder="جستجوی محصول">
+            <div id="search-suggestions" class="list-group"></div>
+        </div>
+    </div> 
+    <div class="container ">
+        <div class="row"> 
+            <div class="col-md-15">
+                <div class="products-container">
+                    <h2>محصولات</h2>
+                    <div id="products-grid" class="products-grid">
+                        <% products.forEach(function(product) { %>
+                            <div class="product-card">
+                                <% if (product.image) { %>
+                                    <img src="<%= product.image %>" alt="<%= product.name %>">
+                                <% } %>
+                                <h3><%= product.name %></h3>
+                                <p class="category"><%= product.category %> - <%= product.subcategory %></p>
+                                <p class="price"><%= product.price %> تومان</p>
+                                <p class="description"><%= product.description %></p>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="productImageModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title" id="productModalTitle"></h4>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="productModalImage" class="modal-image" src="" alt="تصویر محصول">
+                </div>
+                <div class="modal-footer">
+                    <p id="productModalDetails"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"></script>
+
+    <script>
+    $(document).ready(function() {
+        const categories = <%- JSON.stringify(categories) %>;
+        $('#category-select').change(function() {
+            const selectedCategory = $(this).val();
+            const $subcategorySelect = $('#subcategory-select');
+            
+            $subcategorySelect.empty();
+            $subcategorySelect.append('<option value="">همه زیردسته‌ها</option>');
+            
+            if (selectedCategory) {
+                const category = categories.find(cat => cat.name === selectedCategory);
+                category.subcategories.forEach(sub => {
+                    $subcategorySelect.append(`<option value="${sub.name}">${sub.name}</option>`);
+                });
+            }
+            
+            filterProducts();
+        });
+
+        $('#subcategory-select').change(filterProducts);
+
+        function filterProducts() {
+            const category = $('#category-select').val();
+            const subcategory = $('#subcategory-select').val();
+            
+            $.get('/filter-products', { category, subcategory }, function(products) {
+                updateProductsGrid(products);
+            });
+        }
+
+        
+        $('#search-input').on('input', function() {
+            const query = $(this).val();
+            const $suggestions = $('#search-suggestions');
+            
+            if (query.length >= 1) {
+                $.get('/search-products', { query }, function(products) {
+                    $suggestions.empty();
+                    products.slice(0, 5).forEach(product => {
+                        $suggestions.append(`<a href="#" class="list-group-item search-suggestion">${product.name}</a>`);
+                    });
+
+                    $('.search-suggestion').click(function() {
+                        $('#search-input').val($(this).text());
+                        $suggestions.empty();
+                        updateProductsGrid(products);
+                    });
+                });
+            } else {
+                $suggestions.empty();
+            }
+        });
+        function updateProductsGrid(products) {
+            const $grid = $('#products-grid');
+            $grid.empty();
+            
+            products.forEach(product => {
+                const productCard = `
+                    <div class="product-card" data-product-id="${product._id}">
+                        ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-image">` : ''}
+                        <h3>${product.name}</h3>
+                        <p class="category">${product.category} - ${product.subcategory}</p>
+                        <p class="price">${product.price} تومان</p>
+                        <p class="description">${product.description}</p>
+                    </div>
+                `;
+                $grid.append(productCard);
+            });
+
+            // افزودن رویداد کلیک به تصاویر محصولات
+            $('.product-image').click(function() {
+                const $productCard = $(this).closest('.product-card');
+                const productId = $productCard.data('product-id');
+                
+                // درخواست اطلاعات محصول از سرور
+                $.get(`/admin/product/${productId}`, function(product) {
+                    $('#productModalTitle').text(product.name);
+                    $('#productModalImage').attr('src', product.image);
+                    $('#productModalDetails').html(`
+                        <strong>دسته:</strong> ${product.category} - ${product.subcategory}<br>
+                        <strong>قیمت:</strong> ${product.price} تومان<br>
+                        <strong>توضیحات:</strong> ${product.description}
+                    `);
+                    $('#productImageModal').modal('show');
+                });
+            });
+        }
+
+        // اجرای اولیه برای محصولات اولیه صفحه
+        const initialProducts = <%- JSON.stringify(products) %>;
+        updateProductsGrid(initialProducts);
+    });
+
+ 
+    </script>
+</body>
+</html>
